@@ -1,10 +1,12 @@
 const config = {
     width: 600,
-    height: 400,
+    height: 650,
     playerWidth: 10,
     playerHeight: 20,
     criterWidth: 15,
     criterHeight: 15,
+    rockWidth: 100,
+    rockHeight: 25,
 }
 
 let gameState = {
@@ -13,18 +15,21 @@ let gameState = {
         xPosition: 300 - config.playerWidth/2, // Middle minus half width
     },
     criters: Array(4).fill(null).map(
-        (_, yIdx) => Array(10).fill(null).map(
-            (_, idx) => ({xPosition: 10 + idx*config.criterWidth*2, yPosition: 10 + yIdx * config.criterHeight*2, alive: true})
+        (_, columnIdx) => Array(10).fill(null).map(
+            (_, rowIdx) => ({xPosition: 10 + rowIdx*config.criterWidth*2, yPosition: 10 + columnIdx * config.criterHeight*2, alive: true})
         )
     ).flat(),
-    critersDirection: 1,
+    critersDirection: 1, // +1 right / -1 left
     bullet: {
         xPosition: null,
         yPosition: null,
-    }
+    },
+    rocks: Array(4).fill(null).map((_, idx) => ({
+        yPosition: config.height*(6/8), 
+        xPosition: 25+(config.rockWidth*1.5*idx), 
+        health: 10
+    })),
 }
-
-let stateCount = 0;
 
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -54,7 +59,7 @@ function render(ctx, state){
     // Player
     const playerPosition = state.player.xPosition;
     ctx.fillStyle = 'black';
-    ctx.fillRect(playerPosition, 380, config.playerWidth, config.playerHeight);
+    ctx.fillRect(playerPosition, config.height*(7/8), config.playerWidth, config.playerHeight);
 
     // Criters
     for (const criter of gameState.criters) {
@@ -63,10 +68,17 @@ function render(ctx, state){
             ctx.fillRect(criter.xPosition, criter.yPosition, config.criterWidth, config.criterHeight);
         }
     }
+
+    // Rocks
+
+    for (const rock of gameState.rocks) {
+        if(rock.health) {
+            drawRock(ctx, rock.xPosition, rock.yPosition, config.rockWidth, config.rockHeight)
+        }
+    }
 }
 
 function playerAction(e) {
-  console.log(` ${e.code}`);
   let playerPosition = gameState.player.xPosition;
 
   if (e.code === 'ArrowLeft'){
@@ -118,6 +130,23 @@ function boundPosition(position, min, max) {
 
     return position;
 }
+
+function drawRock(ctx, xPosition, yPosition, w, h) {
+    ctx.fillStyle = 'red';
+
+    ctx.beginPath();
+    ctx.moveTo(xPosition, yPosition);
+    ctx.lineTo(xPosition+(w/2), yPosition+h);
+    ctx.lineTo(xPosition+w, yPosition);
+    ctx.fill();
+}
+  
+
+// TODO bullet:
+
+// function that creates bullet
+
+// function that moves bullet and vanishes is when out or hits target
 
 // function that evaluates if bullet hits criter
 // Bullet in range between criter position and + width / height
