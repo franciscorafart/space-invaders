@@ -13,6 +13,7 @@ let gameState = {
     gameOver: false,
     player: {
         xPosition: 300 - config.playerWidth/2, // Middle minus half width
+        yPosition: config.height*(7/8),
     },
     criters: Array(4).fill(null).map(
         (_, columnIdx) => Array(10).fill(null).map(
@@ -32,6 +33,9 @@ let gameState = {
 }
 
 const canvas = document.getElementById('canvas');
+canvas.height = config.height;
+canvas.width = config.width;
+
 const ctx = canvas.getContext('2d');
 
 // Metronome
@@ -41,12 +45,13 @@ function metronome() {
 
     gameState = moveCriterHorde(gameState);
 
-    // TODO: Evaluate collisions, bullets, and kill criters
+    gameState = handleCollisions(gameState);
 
     render(ctx, gameState);
 
     if (gameState.gameOver){
         clearInterval(id);
+        alert('Game Over!')
     }
 }
 
@@ -57,9 +62,9 @@ function render(ctx, state){
     ctx.clearRect(0, 0, config.width, config.height);
 
     // Player
-    const playerPosition = state.player.xPosition;
+    const player = state.player;
     ctx.fillStyle = 'black';
-    ctx.fillRect(playerPosition, config.height*(7/8), config.playerWidth, config.playerHeight);
+    ctx.fillRect(player.xPosition, player.yPosition, config.playerWidth, config.playerHeight);
 
     // Criters
     for (const criter of gameState.criters) {
@@ -70,7 +75,6 @@ function render(ctx, state){
     }
 
     // Rocks
-
     for (const rock of gameState.rocks) {
         if(rock.health) {
             drawRock(ctx, rock.xPosition, rock.yPosition, config.rockWidth, config.rockHeight)
@@ -82,9 +86,9 @@ function playerAction(e) {
   let playerPosition = gameState.player.xPosition;
 
   if (e.code === 'ArrowLeft'){
-    playerPosition = boundPosition(playerPosition - 10, 0, config.width);
+    playerPosition = boundNumber(playerPosition - 10, 0, config.width);
   } else if (e.code === 'ArrowRight') {
-      playerPosition = boundPosition(playerPosition+10, 0, config.width-config.playerWidth);
+      playerPosition = boundNumber(playerPosition+10, 0, config.width-config.playerWidth);
   } else if (e.code === 'Space') {
       // Shoot from position!
   }
@@ -92,6 +96,7 @@ function playerAction(e) {
   gameState = {
     ...gameState,
       player: {
+          ...gameState.player,
           xPosition: playerPosition,
       },
   };
@@ -121,14 +126,14 @@ function moveCriterHorde(state) {
     }
 }
 
-function boundPosition(position, min, max) {
-    if (position < min) {
+function boundNumber(value, min, max) {
+    if (value < min) {
         return 0;
-    } else if (position > max) {
+    } else if (value > max) {
         return max;
     }
 
-    return position;
+    return value;
 }
 
 function drawRock(ctx, xPosition, yPosition, w, h) {
@@ -140,7 +145,69 @@ function drawRock(ctx, xPosition, yPosition, w, h) {
     ctx.lineTo(xPosition+w, yPosition);
     ctx.fill();
 }
-  
+
+// Parans: Position and dimenstions of two boxes (a and b)
+// Return: boolean
+function boxesCollide(aX, aY, aW, aH, bX, bY, bW, bH) {
+    let horizontalCollide = false;
+    let verticalCollide = false;
+
+    if ((bX >= aX && bX <= aX+aW) || (bX+bW >= aX && bX+bW <= aX+aW)) {
+        horizontalCollide = true;
+    }
+
+    if ((bY >= aY && bY <= aY+aH) || (bY+bH >= aY && bY+bH <= aY+aH)) {
+        verticalCollide = true;
+    }
+
+    return horizontalCollide && verticalCollide;
+}
+
+function handleCollisions(state) {
+    // Criters clashing with Rocks
+    const newState = {...state}
+    const criters = state.criters;
+    const rocks = state.rocks;
+    const player = state.player;
+
+    for (const [cIdx, c] of criters.entries()) {
+        for (const [rIdx, r] of rocks.entries()) {
+            if(boxesCollide(
+                c.xPosition, 
+                c.yPosition, 
+                config.criterWidth, 
+                config.criterHeight,
+                r.xPosition,
+                r.yPosition,
+                config.rockWidth,
+                config.rockHeight,
+            )) {
+                if (r.health && c.alive) {
+                    newState.criters[cIdx].alive = false;
+                    newState.rocks[rIdx].health = boundNumber(r.health-2, 0, 10);
+                } 
+            }
+        }
+
+        // Criter hits player (Game Over)
+        if (c.alive && boxesCollide(
+            c.xPosition, 
+            c.yPosition, 
+            config.criterWidth, 
+            config.criterHeight,
+            player.xPosition,
+            player.yPosition,
+            config.playerWidth,
+            config.playerHeight,
+        )) {
+            newState.gameOver = true;
+        }
+
+        // TODO: Bullet hits criter
+    }
+
+    return newState;
+}
 
 // TODO bullet:
 
