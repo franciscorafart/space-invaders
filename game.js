@@ -1,8 +1,8 @@
 const config = {
     width: 600,
     height: 650,
-    playerWidth: 10,
-    playerHeight: 20,
+    playerWidth: 20,
+    playerHeight: 40,
     criterWidth: 15,
     criterHeight: 15,
     rockWidth: 100,
@@ -12,7 +12,7 @@ const config = {
 let gameState = {
     gameOver: false,
     player: {
-        xPosition: 300 - config.playerWidth/2, // Middle minus half width
+        xPosition: config.width/2 - config.playerWidth/2,
         yPosition: config.height*(7/8),
     },
     criters: Array(4).fill(null).map(
@@ -21,42 +21,42 @@ let gameState = {
         )
     ).flat(),
     critersDirection: 1, // +1 right / -1 left
-    bullet: {
-        xPosition: null,
-        yPosition: null,
-    },
     rocks: Array(4).fill(null).map((_, idx) => ({
         yPosition: config.height*(6/8), 
         xPosition: 25+(config.rockWidth*1.5*idx), 
         health: 10
     })),
+    bullet: {
+        xPosition: null,
+        yPosition: null,
+    },
 }
 
-const canvas = document.getElementById('canvas');
-canvas.height = config.height;
-canvas.width = config.width;
+main();
 
-const ctx = canvas.getContext('2d');
+function main() {
+    const canvas = document.getElementById('canvas');
+    canvas.height = config.height;
+    canvas.width = config.width;
+    const ctx = canvas.getContext('2d');
 
-// Metronome
-const id = setInterval(metronome, 20);
+    // Metronome
+    const id = setInterval(metronome, 20);
+    function metronome() {
+        gameState = moveCriterHorde(gameState);
+        gameState = handleCollisions(gameState);
 
-function metronome() {
+        render(ctx, gameState);
 
-    gameState = moveCriterHorde(gameState);
-
-    gameState = handleCollisions(gameState);
-
-    render(ctx, gameState);
-
-    if (gameState.gameOver){
-        clearInterval(id);
-        alert('Game Over!')
+        if (gameState.gameOver){
+            clearInterval(id);
+            alert('Game Over!')
+        }
     }
-}
 
-// User Action
-window.onkeydown = playerAction;
+    // User action listener
+    window.onkeydown = playerAction;
+}
 
 function render(ctx, state){
     ctx.clearRect(0, 0, config.width, config.height);
@@ -83,23 +83,23 @@ function render(ctx, state){
 }
 
 function playerAction(e) {
-  let playerPosition = gameState.player.xPosition;
+    let playerPosition = gameState.player.xPosition;
 
-  if (e.code === 'ArrowLeft'){
-    playerPosition = boundNumber(playerPosition - 10, 0, config.width);
-  } else if (e.code === 'ArrowRight') {
-      playerPosition = boundNumber(playerPosition+10, 0, config.width-config.playerWidth);
-  } else if (e.code === 'Space') {
-      // Shoot from position!
-  }
+    if (e.code === 'ArrowLeft'){
+        playerPosition = boundNumber(playerPosition - 10, 0, config.width);
+    } else if (e.code === 'ArrowRight') {
+        playerPosition = boundNumber(playerPosition+10, 0, config.width-config.playerWidth);
+    } else if (e.code === 'Space') {
+        // Shoot from position!
+    }
 
-  gameState = {
+    gameState = {
     ...gameState,
-      player: {
-          ...gameState.player,
-          xPosition: playerPosition,
-      },
-  };
+        player: {
+            ...gameState.player,
+            xPosition: playerPosition,
+        },
+    };
 }
 
 function moveCriterHorde(state) {
@@ -111,13 +111,11 @@ function moveCriterHorde(state) {
         newCriters = newCriters.map(c => ({
             ...c, 
             yPosition: c.yPosition+config.criterHeight,
-            xPosition: c.xPosition+(direction*-1*10), // Take a little back to avoid bug
+            xPosition: c.xPosition+(direction*-1*10), // Take a little back to avoid this expression being true in next iteration
         })
         );
         direction = direction*-1;
     }
-
-    // TODO: Check if any criter reached the bottom, if so end game by changing gameOver property in state
 
     return {
         ...state,
@@ -164,12 +162,12 @@ function boxesCollide(aX, aY, aW, aH, bX, bY, bW, bH) {
 }
 
 function handleCollisions(state) {
-    // Criters clashing with Rocks
     const newState = {...state}
     const criters = state.criters;
     const rocks = state.rocks;
     const player = state.player;
 
+    // Criters clashing with Rocks
     for (const [cIdx, c] of criters.entries()) {
         for (const [rIdx, r] of rocks.entries()) {
             if(boxesCollide(
@@ -203,7 +201,14 @@ function handleCollisions(state) {
             newState.gameOver = true;
         }
 
+        // Criter arrives at the bottom
+        if (c.alive && c.yPosition+config.criterHeight >= config.height) {
+            newState.gameOver = true;
+        }
+
         // TODO: Bullet hits criter
+        // Bullet hits rock
+        // Bullet reacehs top
     }
 
     return newState;
@@ -211,10 +216,7 @@ function handleCollisions(state) {
 
 // TODO bullet:
 
-// function that creates bullet
+// function that creates bullet and moves it
 
 // function that moves bullet and vanishes is when out or hits target
-
-// function that evaluates if bullet hits criter
-// Bullet in range between criter position and + width / height
 
